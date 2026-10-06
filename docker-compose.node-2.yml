@@ -1,0 +1,34 @@
+name: dlp-node-2
+
+services:
+  es-node-2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION:-8.19.21}
+    container_name: es-node-2
+    environment:
+      - node.name=node-2
+      - cluster.name=dlp-cluster
+      - network.host=0.0.0.0
+      - network.publish_host=${PEER_IP}
+      - discovery.seed_hosts=${HOST_IP}:9300
+      - cluster.initial_master_nodes=node-1,node-2
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    mem_limit: 2g
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata-node-2:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  esdata-node-2:

@@ -1,0 +1,44 @@
+name: dlp-node-3
+
+services:
+  spark-master:
+    image: ${SPARK_IMAGE:-spark:3.5.8-scala2.12-java17-python3-ubuntu}
+    container_name: node-3-spark-master
+    hostname: node-3
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --host ${NODE3_IP:-192.168.1.130} --port 7077 --webui-port 8080
+    networks:
+      lan:
+        ipv4_address: ${NODE3_IP:-192.168.1.130}
+    volumes:
+      - ./data:/data
+      - ./spark/jobs:/jobs
+      - ./pii-detection:/pii-detection
+    restart: unless-stopped
+
+  spark-worker:
+    image: ${SPARK_IMAGE:-spark:3.5.8-scala2.12-java17-python3-ubuntu}
+    container_name: node-3-spark-worker
+    network_mode: "service:spark-master"
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker --host ${NODE3_IP:-192.168.1.130} --webui-port 8081 spark://${NODE3_IP:-192.168.1.130}:7077
+    environment:
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_WORKER_CORES=1
+    volumes:
+      - ./data:/data
+      - ./spark/jobs:/jobs
+      - ./pii-detection:/pii-detection
+    depends_on:
+      - spark-master
+    restart: unless-stopped
+
+networks:
+  lan:
+    driver: ipvlan
+    driver_opts:
+      parent: ${LAN_PARENT:-wlp0s20f3}
+      ipvlan_mode: l2
+    ipam:
+      config:
+        - subnet: ${LAN_SUBNET:-192.168.1.0/24}
+          gateway: ${LAN_GATEWAY:-192.168.1.1}
+          ip_range: ${LAN_IP_RANGE:-192.168.1.128/29}
